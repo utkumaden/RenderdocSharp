@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net8.0</TargetFrameworks>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="OpenTK" Version="5.0.0-pre.10" />
+    <PackageReference Include="ImGui.NET" Version="1.91.0.1" />
+    <ProjectReference Include="../RenderdocSharp/RenderdocSharp.csproj"/>
+  </ItemGroup>
+
+</Project>
