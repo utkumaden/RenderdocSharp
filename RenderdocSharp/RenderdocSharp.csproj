@@ -7,4 +7,32 @@
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <PackageId>RenderdocSharp</PackageId>
+    <Version>1.0.0-rc.0</Version>
+    <Authors>H. Utku Maden; Renderdoc Authors</Authors>
+    <Company>ReFuel project</Company>
+    <PackageTags>renderdoc;render;doc;api;binding;pinvoke;sharp;</PackageTags>
+    <Description>
+      RenderdocSharp is a handwritten wrapper for the API of the popular graphics
+      debugging tool Renderoc. This small library allows you to provide better
+      integration of Renderdoc into your applications in C#.
+
+      This package is licensed under the MIT license. Supports .NET 6.0 and any
+      later LTS at the time of authoring. The current version supports Renderdoc
+      API version 1.6.
+    </Description>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+    <PackageIcon>images/renderdoc.png</PackageIcon>
+    <PackageProjectUrl>https://github.com/utkumaden/RenderdocSharp/wiki</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/utkumaden/RenderdocSharp</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="../*.md" Pack="True" PackagePath="/"/>
+    <None Include="../renderdoc.png" Pack="True" PackagePath="/images"/>
+  </ItemGroup>
 </Project>
