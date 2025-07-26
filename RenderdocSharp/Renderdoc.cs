@@ -1,23 +1,54 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
+using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace RenderdocSharp
 {
-    public static unsafe partial class Renderdoc
+    public static unsafe class Renderdoc
     {
-        public static bool IsAvailable { get; }
+        /// <summary>
+        /// True if the API is available.
+        /// </summary>
+        public static bool IsAvailable => Api != null;
 
+        /// <summary>
+        /// Set the minimum version of the API you require.
+        /// </summary>
+        /// <remarks>Set this before you do anything else with the Renderdoc API, including <see cref="IsAvailable"/>.</remarks>
+        public static Version MinimumRequired { get; set; } = new Version(1, 0, 0);
+
+        /// <summary>
+        /// Set to true to assert versions.
+        /// </summary>
+        public static bool AssertVersionEnabled { get; set; } = true;
+
+        /// <summary>
+        /// Version of the API available.
+        /// </summary>
         [MemberNotNullWhen(true, nameof(IsAvailable))]
-        public static Version? Version { get; }
+        public static Version? Version
+        {
+            get
+            {
+                if (!IsAvailable)
+                    return null;
+
+                int major, minor, build;
+                Api->GetApiVersion(&major, &minor, &build);
+                return new Version(major, minor, build);
+            }
+        }
 
         [RenderdocApiVersion(1, 0)]
         public static OverlayBits OverlayBits
         {
-            get => Api->GetOverlayBits(); 
+            get => Api->GetOverlayBits();
             set
             {
                 Api->MaskOverlayBits(~value, value);
@@ -49,27 +80,6 @@ namespace RenderdocSharp
 
         [RenderdocApiVersion(1, 0)]
         public static bool IsFrameCapturing => Api->IsFrameCapturing() != 0;
-
-        private static RenderdocApi *Api;
-
-        static Renderdoc()
-        {
-            Api = Loader.Load();
-
-            if (Api == null)
-            {
-                IsAvailable = false;
-                Version = null;
-            }
-            else
-            {
-                int major, minor, patch;
-                Api->GetApiVersion(&major, &minor, &patch);
-
-                IsAvailable = true;
-                Version = new Version(major, minor, patch);
-            }
-        }
 
         [RenderdocApiVersion(1, 0)]
         public static bool SetCaptureOption(CaptureOption option, int integer)
@@ -189,7 +199,7 @@ namespace RenderdocSharp
         {
             return Api->EndFrameCapture((void*)hDevice, (void*)hWindow) != 0;
         }
-        
+
         [RenderdocApiVersion(1, 1)]
         public static void TriggerMultiFrameCapture(int numFrames)
         {
@@ -234,8 +244,64 @@ namespace RenderdocSharp
                 Api->SetCaptureTitle(ptr);
         }
 
+        private static RenderdocApi *_api = null;
+        private static bool _loaded = false;
+
+        private static RenderdocApi* Api
+        {
+            get
+            {
+                if (_loaded)
+                    return _api;
+
+                lock (typeof(Renderdoc))
+                {
+                    // Prevent double loads.
+                    if (_loaded)
+                        return _api;
+
+                    _loaded = true;
+                    _api = GetApi(SystemVersionToRenderdocVersion(MinimumRequired));
+
+                    if (_api != null)
+                        AssertAtLeast(MinimumRequired.Major, MinimumRequired.Minor, MinimumRequired.Build);
+
+                    return _api;
+                }
+            }
+        }
+
+        private static RenderdocApi* GetApi(RenderdocVersion minimumRequired = RenderdocVersion.Version_1_0_0)
+        {
+            Regex re = new Regex(@"(lib)?renderdoc(\.dll|\.so|\.dylib)(\.\d+)?", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+
+            foreach (ProcessModule module in Process.GetCurrentProcess().Modules)
+            {
+                string moduleName = module.FileName ?? string.Empty;
+
+                if (!re.IsMatch(moduleName))
+                    continue;
+
+                if (!NativeLibrary.TryLoad(moduleName, out IntPtr moduleHandle))
+                    return null;
+
+                if (!NativeLibrary.TryGetExport(moduleHandle, "RENDERDOC_GetAPI", out IntPtr procAddress))
+                    return null;
+
+                var RENDERDOC_GetApi = (delegate* unmanaged[Cdecl]<RenderdocVersion, RenderdocApi**, int>)procAddress;
+
+                RenderdocApi* api;
+                return RENDERDOC_GetApi(minimumRequired, &api) != 0 ? api : null;
+            }
+
+            return null;
+        }
+
         private static void AssertAtLeast(int major, int minor, int patch = 0, [CallerMemberName] string callee = "")
         {
+            if (!AssertVersionEnabled)
+                return;
+
             if (Version!.Major < major)
                 goto fail;
             else if (Version.Major > major)
@@ -254,10 +320,13 @@ namespace RenderdocSharp
             throw new NotSupportedException($"This API was introduced in RenderdocAPI {minVersion}. Current API version is {Version}.");
         }
 
-        private static Version VersionConvert(RenderdocVersion version)
+        private static Version RenderdocVersionToSystemVersion(RenderdocVersion version)
         {
             int i = (int)version;
             return new Version(i/10000, (i % 10000)/100, i % 100);
         }
+
+        private static RenderdocVersion SystemVersionToRenderdocVersion(Version version) =>
+            (RenderdocVersion)(version.Major * 10000 + version.Minor * 100 + version.Build);
     }
 }
