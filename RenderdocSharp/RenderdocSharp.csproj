@@ -9,7 +9,7 @@
 
   <PropertyGroup>
     <PackageId>RenderdocSharp</PackageId>
-    <Version>1.0.0-rc.0</Version>
+    <Version>1.0.0-rc.1</Version>
     <Authors>H. Utku Maden; Renderdoc Authors</Authors>
     <Company>ReFuel project</Company>
     <PackageTags>renderdoc;render;doc;api;binding;pinvoke;sharp;</PackageTags>
